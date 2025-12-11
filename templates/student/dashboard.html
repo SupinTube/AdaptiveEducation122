@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block content %}
+<h3>Кабінет студента</h3>
+<p>Вітаємо, {{ profile.user.get_full_name|default:profile.user.username }}!</p>
+<ul>
+  <li>Курс: {{ profile.year }}</li>
+  <li>Рівні: math {{ profile.math_level }}, prog {{ profile.prog_level }}, ai {{ profile.ai_level }}, soft {{ profile.soft_level }}</li>
+  <li>Інтереси: {{ profile.interests }}</li>
+</ul>
+<a class="btn btn-secondary btn-sm" href="{% url 'student_profile' %}">Редагувати профіль</a>
+<a class="btn btn-secondary btn-sm" href="{% url 'student_courses' %}">Мої курси</a>
+<a class="btn btn-primary btn-sm" href="{% url 'student_recommendations' %}">Оновити рекомендації</a>
+
+<h5 class="mt-4">Останні рекомендації</h5>
+<table class="table table-sm">
+  <tr><th>Код</th><th>Назва</th><th>Оцінка</th></tr>
+  {% for r in recommendations %}
+    <tr><td>{{ r.course.code }}</td><td>{{ r.course.name }}</td><td>{{ r.score|floatformat:3 }}</td></tr>
+  {% empty %}
+    <tr><td colspan="3">Поки немає рекомендацій.</td></tr>
+  {% endfor %}
+</table>
+{% endblock %}

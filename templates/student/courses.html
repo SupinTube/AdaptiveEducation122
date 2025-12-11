@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block content %}
+<h3>Мої дисципліни</h3>
+<form method="post">
+  {% csrf_token %}
+  <div class="mb-3">
+    {{ form.courses.label_tag }}<br>
+    {{ form.courses }}
+  </div>
+  <button class="btn btn-primary">Зберегти</button>
+</form>
+
+<h5 class="mt-4">Поточний список</h5>
+<table class="table table-sm">
+  <tr><th>Код</th><th>Назва</th><th>Статус</th></tr>
+  {% for e in enrollments %}
+    <tr><td>{{ e.course.code }}</td><td>{{ e.course.name }}</td><td>{{ e.get_status_display }}</td></tr>
+  {% empty %}
+    <tr><td colspan="3">Немає обраних дисциплін.</td></tr>
+  {% endfor %}
+</table>
+{% endblock %}

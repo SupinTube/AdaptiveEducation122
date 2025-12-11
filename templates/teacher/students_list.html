@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block content %}
+<h3>Студенти</h3>
+<table class="table table-striped">
+  <tr><th>Ім'я</th><th>Курс</th><th>Курсів</th><th></th></tr>
+  {% for s in students %}
+    <tr>
+      <td>{{ s }}</td>
+      <td>{{ s.year }}</td>
+      <td>{{ s.courses_count }}</td>
+      <td><a href="{% url 'teacher_student_recommendations' s.id %}">Рекомендації</a></td>
+    </tr>
+  {% empty %}
+    <tr><td colspan="4">Немає студентів.</td></tr>
+  {% endfor %}
+</table>
+{% endblock %}

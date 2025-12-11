@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block content %}
+<h3>Рекомендації</h3>
+<a class="btn btn-primary btn-sm mb-3" href="{% url 'student_recommendations' %}">Оновити</a>
+<table class="table table-striped">
+  <tr><th>Код</th><th>Назва</th><th>ECTS</th><th>Семестр</th><th>Оцінка</th></tr>
+  {% for r in recommendations %}
+    <tr>
+      <td>{{ r.course.code }}</td>
+      <td>{{ r.course.name }}</td>
+      <td>{{ r.course.ects }}</td>
+      <td>{{ r.course.semester }}</td>
+      <td>{{ r.score|floatformat:3 }}</td>
+    </tr>
+  {% empty %}
+    <tr><td colspan="5">Немає рекомендацій.</td></tr>
+  {% endfor %}
+</table>
+{% endblock %}

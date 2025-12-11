@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block content %}
+<h3>Імпорт каталогу</h3>
+<form method="post">
+  {% csrf_token %}
+  <p>Імпорт із data/courses_catalog.csv та XLSX з вільними дисциплінами.</p>
+  <button class="btn btn-primary">Імпортувати</button>
+</form>
+{% endblock %}

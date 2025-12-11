@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block content %}
+<h3>Тренування моделі</h3>
+<form method="post">
+  {% csrf_token %}
+  <p>Натисніть для запуску тренування SBM моделі.</p>
+  <button class="btn btn-primary">Тренувати</button>
+</form>
+{% endblock %}

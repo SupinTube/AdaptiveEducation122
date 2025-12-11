@@ -1,0 +1,43 @@
+# Byte-compiled / cache
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+
+# Virtual environments
+venv/
+.venv/
+env/
+.env/
+
+# Django / logs
+db.sqlite3
+*.log
+
+# Static / media (collected)
+staticfiles/
+
+# Model artifacts
+var/
+output/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Archives
+*.zip
+*.rar
+
+# Coverage / test
+.coverage
+.pytest_cache/
+.mypy_cache/
+
+# Generated data
+data/students_current.csv
+data/student_enrollments.csv
+data/students_new.csv

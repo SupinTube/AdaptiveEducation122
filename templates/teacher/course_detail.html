@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block content %}
+<h3>{{ course.code }} — {{ course.name }}</h3>
+<p>ECTS: {{ course.ects }}, Семестр: {{ course.semester }}, Тип: {{ course.kind }}, Блок: {{ course.block }}</p>
+<p>Рівні: math {{ course.req_math }}, prog {{ course.req_prog }}, ai {{ course.req_ai }}, soft {{ course.req_soft }}</p>
+<p>Теги: {{ course.tags }}</p>
+<p>Пререквізити: {% for p in course.prerequisites.all %}{{ p.code }} {% empty %}нема{% endfor %}</p>
+<a class="btn btn-secondary btn-sm" href="{% url 'teacher_course_edit' course.code %}">Редагувати</a>
+{% endblock %}

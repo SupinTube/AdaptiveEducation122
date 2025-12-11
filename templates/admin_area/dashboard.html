@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block content %}
+<h3>Адмін-панель</h3>
+<p>Модель: {% if model_exists %}наявна{% else %}не натренована{% endif %}</p>
+{% if meta %}
+  <ul>
+    <li>Записів тренування: {{ meta.train_records }}</li>
+    <li>Студентів: {{ meta.train_students }}</li>
+    <li>Вибіркових: {{ meta.electives|length }}</li>
+  </ul>
+{% endif %}
+<a class="btn btn-primary btn-sm" href="{% url 'admin_train_model' %}">Тренувати модель</a>
+<a class="btn btn-secondary btn-sm" href="{% url 'admin_import_catalog' %}">Імпорт каталогу</a>
+{% endblock %}

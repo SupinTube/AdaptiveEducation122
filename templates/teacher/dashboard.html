@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block content %}
+<h3>Панель викладача</h3>
+<div class="row">
+  <div class="col-md-4"><div class="card"><div class="card-body">Курсів: {{ stats.courses }}</div></div></div>
+  <div class="col-md-4"><div class="card"><div class="card-body">Студентів: {{ stats.students }}</div></div></div>
+  <div class="col-md-4"><div class="card"><div class="card-body">Рекомендацій: {{ stats.recommendations }}</div></div></div>
+  <div class="col-12 mt-4">
+    <h5>Останні рекомендації</h5>
+    <table class="table table-sm">
+      <tr><th>Студент</th><th>Курс</th><th>Оцінка</th><th>Час</th></tr>
+      {% for r in recommendations %}
+        <tr><td>{{ r.student }}</td><td>{{ r.course }}</td><td>{{ r.score|floatformat:3 }}</td><td>{{ r.created_at }}</td></tr>
+      {% empty %}
+        <tr><td colspan="4">Поки немає даних.</td></tr>
+      {% endfor %}
+    </table>
+  </div>
+</div>
+{% endblock %}
