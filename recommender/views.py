@@ -2,6 +2,7 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib.auth.models import Group
 from django.core.management import call_command
+from django.db import transaction
 from django.db.models import Count
 from django.shortcuts import get_object_or_404, redirect, render
 
@@ -34,6 +35,13 @@ def ensure_student_profile(user):
 
 
 def home(request):
+    if request.user.is_authenticated:
+        if is_admin(request.user):
+            return redirect("admin_dashboard")
+        if is_teacher(request.user):
+            return redirect("teacher_dashboard")
+        if is_student(request.user):
+            return redirect("student_dashboard")
     return render(request, "home.html")
 
 
@@ -65,13 +73,13 @@ def student_profile_view(request):
 @user_passes_test(is_student)
 def student_courses(request):
     profile = ensure_student_profile(request.user)
+    courses_qs = Course.objects.prefetch_related("prerequisites").all().order_by("semester", "code")
+    prereq_map = {c.code: list(c.prerequisites.values_list("code", flat=True)) for c in courses_qs}
     taken_codes = set(StudentCourseEnrollment.objects.filter(student=profile).values_list("course__code", flat=True))
-    form = StudentCoursesForm(initial={"courses": Course.objects.filter(code__in=taken_codes)})
-
     if request.method == "POST":
-        form = StudentCoursesForm(request.POST)
+        form = StudentCoursesForm(request.POST, courses_qs=courses_qs, prereq_map=prereq_map)
         if form.is_valid():
-            new_selection = set(form.cleaned_data["courses"].values_list("code", flat=True))
+            new_selection = {c.code for c in form.cleaned_data["courses"]}
             # remove old
             StudentCourseEnrollment.objects.filter(student=profile).exclude(course__code__in=new_selection).delete()
             # add new as completed
@@ -81,8 +89,31 @@ def student_courses(request):
             messages.success(request, "Список пройдених дисциплін оновлено.")
             return redirect("student_courses")
 
+    else:
+        form = StudentCoursesForm(
+            courses_qs=courses_qs,
+            prereq_map=prereq_map,
+            initial={"courses": sorted(taken_codes)},
+        )
+
+    selected_codes = set(form["courses"].value() or [])
+    course_rows = []
+    for c in courses_qs:
+        prereqs = prereq_map.get(c.code, [])
+        missing = sorted(set(prereqs) - selected_codes)
+        disabled = (c.code not in selected_codes) and bool(missing)
+        course_rows.append(
+            {
+                "course": c,
+                "prereqs": prereqs,
+                "missing_prereqs": missing,
+                "checked": c.code in selected_codes,
+                "disabled": disabled,
+            }
+        )
+
     enrollments = StudentCourseEnrollment.objects.filter(student=profile)
-    return render(request, "student/courses.html", {"form": form, "enrollments": enrollments})
+    return render(request, "student/courses.html", {"form": form, "enrollments": enrollments, "course_rows": course_rows})
 
 
 @login_required
@@ -90,15 +121,27 @@ def student_courses(request):
 def student_recommendations(request):
     profile = ensure_student_profile(request.user)
     taken = taken_courses_for_student(profile)
-    Recommendation.objects.filter(student=profile).delete()
     try:
         recs = recommend_for_profile(profile, taken, top_k=5)
     except RuntimeError as e:
         messages.error(request, str(e))
-        recs = []
+        rec_list = Recommendation.objects.filter(student=profile)
+        return render(request, "student/recommendations.html", {"recommendations": rec_list})
+
+    codes = [code for code, _ in recs]
+    courses_by_code = Course.objects.in_bulk(codes, field_name="code") if codes else {}
+    new_recs = []
     for code, score in recs:
-        course = Course.objects.get(code=code)
-        Recommendation.objects.create(student=profile, course=course, score=score)
+        course = courses_by_code.get(code)
+        if course is None:
+            continue
+        new_recs.append(Recommendation(student=profile, course=course, score=score))
+
+    with transaction.atomic():
+        Recommendation.objects.filter(student=profile).delete()
+        if new_recs:
+            Recommendation.objects.bulk_create(new_recs)
+
     rec_list = Recommendation.objects.filter(student=profile)
     return render(request, "student/recommendations.html", {"recommendations": rec_list})
 
@@ -166,11 +209,22 @@ def teacher_students(request):
 def teacher_student_recommendations(request, student_id):
     student = get_object_or_404(StudentProfile, id=student_id)
     taken = taken_courses_for_student(student)
-    Recommendation.objects.filter(student=student).delete()
     recs = recommend_for_profile(student, taken, top_k=5)
+
+    codes = [code for code, _ in recs]
+    courses_by_code = Course.objects.in_bulk(codes, field_name="code") if codes else {}
+    new_recs = []
     for code, score in recs:
-        course = Course.objects.get(code=code)
-        Recommendation.objects.create(student=student, course=course, score=score)
+        course = courses_by_code.get(code)
+        if course is None:
+            continue
+        new_recs.append(Recommendation(student=student, course=course, score=score))
+
+    with transaction.atomic():
+        Recommendation.objects.filter(student=student).delete()
+        if new_recs:
+            Recommendation.objects.bulk_create(new_recs)
+
     rec_list = Recommendation.objects.filter(student=student)
     return render(request, "teacher/student_recommendations.html", {"student": student, "recommendations": rec_list})
 

@@ -46,12 +46,32 @@ class StudentCoursesForm(forms.Form):
     courses = forms.ModelMultipleChoiceField(
         queryset=Course.objects.none(),
         required=False,
-        widget=forms.SelectMultiple(attrs={"class": "form-control", "size": 15}),
+        widget=forms.CheckboxSelectMultiple,
     )
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, courses_qs=None, prereq_map=None, **kwargs):
+        self.prereq_map = prereq_map or {}
         super().__init__(*args, **kwargs)
-        self.fields["courses"].queryset = Course.objects.all()
+        self.fields["courses"].queryset = courses_qs if courses_qs is not None else Course.objects.all()
+
+    def clean_courses(self):
+        courses = self.cleaned_data.get("courses") or []
+        selected_codes = {c.code for c in courses}
+
+        invalid = []
+        for code in sorted(selected_codes):
+            prereqs = set(self.prereq_map.get(code, []))
+            missing = sorted(prereqs - selected_codes)
+            if missing:
+                invalid.append((code, missing))
+
+        if invalid:
+            parts = [f"{code} (потрібно: {', '.join(missing)})" for code, missing in invalid]
+            raise forms.ValidationError(
+                "Неможливо обрати дисципліни без пререквізитів: " + "; ".join(parts)
+            )
+
+        return courses
 
 
 class CourseForm(forms.ModelForm):

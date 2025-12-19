@@ -6,10 +6,19 @@ from .forms import INTEREST_CHOICES
 
 @admin.register(Course)
 class CourseAdmin(admin.ModelAdmin):
-    list_display = ("code", "name", "semester", "kind", "block", "ects")
+    list_display = ("code", "name", "semester", "kind", "block", "ects", "prerequisites_display")
     search_fields = ("code", "name", "tags")
     list_filter = ("semester", "kind", "block")
+    autocomplete_fields = ("prerequisites",)
     filter_horizontal = ("prerequisites",)
+
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        return qs.prefetch_related("prerequisites")
+
+    @admin.display(description="Пререквізити")
+    def prerequisites_display(self, obj):
+        return ", ".join(p.code for p in obj.prerequisites.all())
 
 
 class StudentProfileAdminForm(forms.ModelForm):

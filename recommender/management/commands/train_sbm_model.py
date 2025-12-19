@@ -13,7 +13,7 @@ class Command(BaseCommand):
         model_path = settings.SBM_MODEL_PATH
 
         catalog_csv = data_dir / "courses_catalog.csv"
-        electives_xlsx = data_dir / "Дисциплины свободного выбора.xlsx"
+        electives_xlsx = data_dir / "Дисципліни вільного вибору.xlsx"
         catalog = core.load_catalog(str(catalog_csv), str(electives_xlsx))
 
         current_students, new_students, enrollments, generated_students = core.ensure_student_data(str(data_dir), catalog)

@@ -4,7 +4,7 @@
   <h2>Система рекомендацій навчальних траєкторій</h2>
   <p>Увійдіть, щоб перейти до своєї ролі (студент, викладач або адміністратор).</p>
   {% if not user.is_authenticated %}
-    <a class="btn btn-primary" href="/login/">Увійти</a>
+    <a class="btn btn-primary" href="{% url 'login' %}">Увійти</a>
   {% endif %}
 </div>
 {% endblock %}

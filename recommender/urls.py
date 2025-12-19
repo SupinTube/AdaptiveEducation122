@@ -17,7 +17,7 @@ urlpatterns = [
     path("teacher/students/", views.teacher_students, name="teacher_students"),
     path("teacher/students/<int:student_id>/recommendations/", views.teacher_student_recommendations, name="teacher_student_recommendations"),
     # admin area
-    path("admin/dashboard/", views.admin_dashboard, name="admin_dashboard"),
-    path("admin/model/train/", views.admin_train_model, name="admin_train_model"),
-    path("admin/catalog/import/", views.admin_import_catalog, name="admin_import_catalog"),
+    path("admin-area/dashboard/", views.admin_dashboard, name="admin_dashboard"),
+    path("admin-area/model/train/", views.admin_train_model, name="admin_train_model"),
+    path("admin-area/catalog/import/", views.admin_import_catalog, name="admin_import_catalog"),
 ]

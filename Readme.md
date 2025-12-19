@@ -12,7 +12,7 @@
 - `study_reco/` — налаштування Django.
 - `recommender/` — додаток із моделями, формами, в’ю, URL, ML-сервісом, менеджмент-командами.
 - `templates/` — базові та рольові шаблони (student/teacher/admin).
-- `data/` — вихідні дані: `courses_catalog.csv`, `Дисциплины свободного выбора.xlsx`, `students_current.csv`, `student_enrollments.csv` тощо.
+- `data/` — вихідні дані: `courses_catalog.csv`, `Дисципліни вільного вибору.xlsx`, `students_current.csv`, `student_enrollments.csv` тощо.
 - `var/sbm_model.joblib` — кеш збереженої моделі (шлях конфігурований у `settings.py`).
 
 ## Ролі та доступ
@@ -54,11 +54,11 @@
 - Вхід: `/login/`; вихід: `/logout/` (GET, редірект на головну).
 - Студент: `/student/dashboard/`, профіль `/student/profile/`, курси `/student/courses/`, рекомендації `/student/recommendations/`.
 - Викладач: `/teacher/dashboard/`, курси `/teacher/courses/`, деталі/редагування курсу, студенти `/teacher/students/`, рекомендації для студента `/teacher/students/<id>/recommendations/`.
-- Адмін: `/admin/dashboard/` (статус моделі, швидкі дії), `/admin/model/train/`, `/admin/catalog/import/` + стандартний Django admin `/admin/`.
+- Адмін: `/admin-area/dashboard/` (статус моделі, швидкі дії), `/admin-area/model/train/`, `/admin-area/catalog/import/` + стандартний Django admin `/admin/`.
 
 ## Дані та синтетика
 - Якщо файли студентів/зарахувань відсутні, `build_sbm_project.py` (через `ensure_student_data`) згенерує синтетичних студентів і збереже в `data/`.
-- Вибіркові назви курсу підтягуються з `data/Дисциплины свободного выбора.xlsx`.
+- Вибіркові назви курсу підтягуються з `data/Дисципліни вільного вибору.xlsx`.
 
 ## Примітки
 - Усі коментарі/тексти коду — українською.

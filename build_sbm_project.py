@@ -298,7 +298,7 @@ def main() -> None:
     report_path = os.path.join(out_dir, "model_report.txt")
 
     catalog_csv = os.path.join(data_dir, "courses_catalog.csv")
-    electives_xlsx = os.path.join(data_dir, "Дисциплины свободного выбора.xlsx")
+    electives_xlsx = os.path.join(data_dir, "Дисципліни вільного вибору.xlsx")
     catalog = load_catalog(catalog_csv, electives_xlsx)
 
     current_students, new_students, enrollments, generated_students = ensure_student_data(data_dir, catalog)

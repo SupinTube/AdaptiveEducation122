@@ -1,12 +1,65 @@
 {% extends "base.html" %}
 {% block content %}
+<a class="btn btn-outline-secondary btn-sm mb-3" href="{% url 'student_dashboard' %}">Повернутися</a>
 <h3>Мої дисципліни</h3>
 <form method="post">
   {% csrf_token %}
-  <div class="mb-3">
-    {{ form.courses.label_tag }}<br>
-    {{ form.courses }}
-  </div>
+  {% if form.non_field_errors %}
+    <div class="alert alert-danger">{{ form.non_field_errors }}</div>
+  {% endif %}
+  {% if form.courses.errors %}
+    <div class="alert alert-danger">{{ form.courses.errors }}</div>
+  {% endif %}
+
+  <p class="text-muted mb-2">
+    Відмітьте дисципліни, які ви вже пройшли. Дисципліни з незакритими пререквізитами недоступні для вибору.
+  </p>
+
+  <table class="table table-sm align-middle">
+    <thead>
+      <tr>
+        <th style="width: 36px;"></th>
+        <th>Код</th>
+        <th>Назва</th>
+        <th style="width: 90px;">Семестр</th>
+        <th>Пререквізити</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in course_rows %}
+        {% with code=row.course.code code_id=row.course.code|slugify %}
+          <tr class="{% if row.disabled %}table-secondary{% endif %}">
+            <td>
+              <input
+                class="form-check-input js-course"
+                type="checkbox"
+                name="courses"
+                value="{{ code }}"
+                id="course_{{ code_id }}"
+                data-prereqs="{% if row.prereqs %}{{ row.prereqs|join:',' }}{% endif %}"
+                data-hint-id="prereq_hint_{{ code_id }}"
+                {% if row.checked %}checked{% endif %}
+                {% if row.disabled %}disabled{% endif %}
+              >
+            </td>
+            <td><label class="form-check-label" for="course_{{ code_id }}">{{ code }}</label></td>
+            <td>{{ row.course.name }}</td>
+            <td>{{ row.course.semester }}</td>
+            <td>
+              {% if row.prereqs %}
+                <div class="small">{{ row.prereqs|join:", " }}</div>
+              {% else %}
+                <div class="text-muted small">—</div>
+              {% endif %}
+              <div id="prereq_hint_{{ code_id }}" class="small {% if row.missing_prereqs %}text-danger{% else %}text-muted{% endif %}">
+                {% if row.missing_prereqs %}Потрібно: {{ row.missing_prereqs|join:", " }}{% endif %}
+              </div>
+            </td>
+          </tr>
+        {% endwith %}
+      {% endfor %}
+    </tbody>
+  </table>
   <button class="btn btn-primary">Зберегти</button>
 </form>
 
@@ -19,4 +72,49 @@
     <tr><td colspan="3">Немає обраних дисциплін.</td></tr>
   {% endfor %}
 </table>
+
+<script>
+  (function () {
+    function parsePrereqs(value) {
+      if (!value) return [];
+      return value.split(",").map((x) => x.trim()).filter(Boolean);
+    }
+
+    function updateAvailability() {
+      const selected = new Set(
+        Array.from(document.querySelectorAll("input.js-course:checked")).map((el) => el.value)
+      );
+
+      document.querySelectorAll("input.js-course").forEach((el) => {
+        const prereqs = parsePrereqs(el.dataset.prereqs || "");
+        const unmet = prereqs.filter((p) => !selected.has(p));
+
+        el.disabled = !el.checked && unmet.length > 0;
+
+        const hintId = el.dataset.hintId;
+        if (!hintId) return;
+        const hint = document.getElementById(hintId);
+        if (!hint) return;
+
+        if (unmet.length > 0) {
+          hint.textContent = "Потрібно: " + unmet.join(", ");
+          hint.classList.remove("text-muted");
+          hint.classList.add("text-danger");
+        } else {
+          hint.textContent = "";
+          hint.classList.remove("text-danger");
+          hint.classList.add("text-muted");
+        }
+      });
+    }
+
+    document.addEventListener("change", (e) => {
+      if (e.target && e.target.matches("input.js-course")) {
+        updateAvailability();
+      }
+    });
+
+    updateAvailability();
+  })();
+</script>
 {% endblock %}
