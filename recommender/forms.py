@@ -51,27 +51,49 @@ class StudentCoursesForm(forms.Form):
 
     def __init__(self, *args, courses_qs=None, prereq_map=None, **kwargs):
         self.prereq_map = prereq_map or {}
+        self.cleaned_grades = {}
         super().__init__(*args, **kwargs)
         self.fields["courses"].queryset = courses_qs if courses_qs is not None else Course.objects.all()
 
-    def clean_courses(self):
-        courses = self.cleaned_data.get("courses") or []
+    def clean(self):
+        cleaned_data = super().clean()
+        courses = cleaned_data.get("courses") or []
         selected_codes = {c.code for c in courses}
 
-        invalid = []
+        invalid_prereqs = []
         for code in sorted(selected_codes):
             prereqs = set(self.prereq_map.get(code, []))
             missing = sorted(prereqs - selected_codes)
             if missing:
-                invalid.append((code, missing))
+                invalid_prereqs.append((code, missing))
 
-        if invalid:
-            parts = [f"{code} (потрібно: {', '.join(missing)})" for code, missing in invalid]
-            raise forms.ValidationError(
-                "Неможливо обрати дисципліни без пререквізитів: " + "; ".join(parts)
-            )
+        if invalid_prereqs:
+            parts = [f"{code} (потрібно: {', '.join(missing)})" for code, missing in invalid_prereqs]
+            raise forms.ValidationError("Неможливо обрати дисципліни без пререквізитів: " + "; ".join(parts))
 
-        return courses
+        grades = {}
+        invalid_grades = []
+        for code in sorted(selected_codes):
+            raw = (self.data.get(f"grade_{code}") or "").strip()
+            if raw == "":
+                invalid_grades.append((code, "не вказано"))
+                continue
+            try:
+                val = int(raw)
+            except ValueError:
+                invalid_grades.append((code, "не число"))
+                continue
+            if val < 0 or val > 100:
+                invalid_grades.append((code, "поза межами 0–100"))
+                continue
+            grades[code] = val
+
+        if invalid_grades:
+            parts = [f"{code} ({reason})" for code, reason in invalid_grades]
+            raise forms.ValidationError("Некоректні бали: " + "; ".join(parts))
+
+        self.cleaned_grades = grades
+        return cleaned_data
 
 
 class CourseForm(forms.ModelForm):

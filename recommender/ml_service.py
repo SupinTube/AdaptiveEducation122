@@ -21,11 +21,22 @@ def load_model() -> Tuple[object, Dict] | Tuple[None, None]:
     return data.get("model"), data.get("meta", {})
 
 
-def recommend_for_profile(student: StudentProfile, taken_codes: List[str], top_k: int = 5) -> List[Tuple[str, float]]:
-    """Будуємо рекомендації для профілю студента на основі збереженої моделі."""
+def recommend_for_profile(
+    student: StudentProfile,
+    taken_codes: List[str],
+    taken_grades: Dict[str, int] | None = None,
+    top_k: int = 5,
+) -> List[Tuple[str, float]]:
+    """Будуємо рекомендації для профілю студента на основі збереженої моделі та оцінок."""
     model, _ = load_model()
     if model is None:
         raise RuntimeError("Модель не знайдено. Спершу натренуйте її командою train_sbm_model.")
+
+    taken_set = set(taken_codes)
+    taken_grades = taken_grades or {}
+    grade_values = [g for g in taken_grades.values() if g is not None]
+    overall_avg_grade = (sum(grade_values) / len(grade_values)) if grade_values else None
+    interests = {i.strip() for i in (student.interests or "").split(",") if i.strip()}
 
     df = pd.DataFrame(
         [
@@ -47,15 +58,37 @@ def recommend_for_profile(student: StudentProfile, taken_codes: List[str], top_k
     prereq_map = {c.code: set(c.prerequisites.values_list("code", flat=True)) for c in courses.values()}
     results: List[Tuple[str, float]] = []
 
+    def avg_grade_for_codes(codes: set[str]) -> float | None:
+        vals = [taken_grades.get(c) for c in codes if taken_grades.get(c) is not None]
+        if not vals:
+            return None
+        return sum(vals) / len(vals)
+
     for label, p in zip(labels, proba):
-        course = courses.get(label)
+        code = str(label)
+        course = courses.get(code)
         if not course or course.kind != "вибіркова":
             continue
-        if label in taken_codes:
+        if code in taken_set:
             continue
-        if not prereq_map.get(label, set()).issubset(set(taken_codes)):
+        prereqs = prereq_map.get(code, set())
+        if not prereqs.issubset(taken_set):
             continue
-        results.append((label, float(p)))
+
+        base_score = float(p)
+        course_tags = {t.strip() for t in (course.tags or "").split(",") if t.strip()}
+        interest_weight = 1.15 if (course_tags & interests) else 1.0
+
+        prereq_avg = avg_grade_for_codes(prereqs)
+        if prereq_avg is None:
+            prereq_avg = overall_avg_grade
+
+        if prereq_avg is None:
+            grade_weight = 1.0
+        else:
+            grade_weight = 0.75 + (prereq_avg / 100.0) * 0.5
+
+        results.append((code, base_score * interest_weight * grade_weight))
 
     results.sort(key=lambda x: x[1], reverse=True)
     return results[:top_k]

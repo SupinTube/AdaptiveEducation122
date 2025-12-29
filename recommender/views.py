@@ -7,8 +7,28 @@ from django.db.models import Count
 from django.shortcuts import get_object_or_404, redirect, render
 
 from .forms import StudentProfileForm, StudentCoursesForm, CourseForm
-from .ml_service import recommend_for_profile, taken_courses_for_student, load_model
+from .ml_service import recommend_for_profile, load_model
 from .models import Course, StudentProfile, StudentCourseEnrollment, Recommendation
+
+
+HIGH_GRADE_THRESHOLD = 80
+
+
+def _priority_tags_for_interests(interests: set[str]) -> set[str]:
+    mapping = {
+        "ai": {"ai", "math", "programming", "data"},
+        "data": {"data", "math", "programming", "optimization"},
+        "web": {"web", "programming", "ux"},
+        "systems": {"systems", "programming", "architecture"},
+        "security": {"security", "systems", "programming"},
+        "management": {"management", "soft", "project", "quality"},
+        "ux": {"ux", "web", "soft"},
+        "science": {"science", "math", "data", "ai"},
+    }
+    tags: set[str] = set()
+    for interest in interests:
+        tags |= mapping.get(interest, set())
+    return tags
 
 
 def is_student(user):
@@ -51,7 +71,40 @@ def home(request):
 def student_dashboard(request):
     profile = ensure_student_profile(request.user)
     recos = Recommendation.objects.filter(student=profile)[:5]
-    return render(request, "student/dashboard.html", {"profile": profile, "recommendations": recos})
+
+    interests = {i.strip() for i in (profile.interests or "").split(",") if i.strip()}
+    priority_tags = _priority_tags_for_interests(interests)
+
+    mandatory_qs = Course.objects.all().order_by("semester", "code")
+    enrollments = StudentCourseEnrollment.objects.filter(student=profile, status="completed").select_related("course")
+    grades_by_code = {code: grade for code, grade in enrollments.values_list("course__code", "grade")}
+
+    focus_courses = []
+    for c in mandatory_qs:
+        if c.kind != "обов'язкова":
+            continue
+        tags = {t.strip() for t in (c.tags or "").split(",") if t.strip()}
+        if not (tags & priority_tags):
+            continue
+        grade = grades_by_code.get(c.code)
+        focus_courses.append(
+            {
+                "course": c,
+                "grade": grade,
+                "needs_high_grade": grade is None or grade < HIGH_GRADE_THRESHOLD,
+            }
+        )
+
+    return render(
+        request,
+        "student/dashboard.html",
+        {
+            "profile": profile,
+            "recommendations": recos,
+            "focus_courses": focus_courses,
+            "high_grade_threshold": HIGH_GRADE_THRESHOLD,
+        },
+    )
 
 
 @login_required
@@ -75,7 +128,9 @@ def student_courses(request):
     profile = ensure_student_profile(request.user)
     courses_qs = Course.objects.prefetch_related("prerequisites").all().order_by("semester", "code")
     prereq_map = {c.code: list(c.prerequisites.values_list("code", flat=True)) for c in courses_qs}
-    taken_codes = set(StudentCourseEnrollment.objects.filter(student=profile).values_list("course__code", flat=True))
+    enrollments_qs = StudentCourseEnrollment.objects.select_related("course").filter(student=profile)
+    taken_codes = set(enrollments_qs.values_list("course__code", flat=True))
+    grades_by_code = {code: grade for code, grade in enrollments_qs.values_list("course__code", "grade")}
     if request.method == "POST":
         form = StudentCoursesForm(request.POST, courses_qs=courses_qs, prereq_map=prereq_map)
         if form.is_valid():
@@ -85,7 +140,11 @@ def student_courses(request):
             # add new as completed
             for code in new_selection:
                 course = Course.objects.get(code=code)
-                StudentCourseEnrollment.objects.get_or_create(student=profile, course=course, defaults={"status": "completed"})
+                StudentCourseEnrollment.objects.update_or_create(
+                    student=profile,
+                    course=course,
+                    defaults={"status": "completed", "grade": form.cleaned_grades.get(code)},
+                )
             messages.success(request, "Список пройдених дисциплін оновлено.")
             return redirect("student_courses")
 
@@ -96,12 +155,26 @@ def student_courses(request):
             initial={"courses": sorted(taken_codes)},
         )
 
-    selected_codes = set(form["courses"].value() or [])
+    if request.method == "POST":
+        selected_codes = set(form.data.getlist("courses") or [])
+        grade_values = {code: (form.data.get(f"grade_{code}") or "").strip() for code in selected_codes}
+    else:
+        selected_codes = set(form["courses"].value() or [])
+        grade_values = {
+            code: ("" if grades_by_code.get(code) is None else str(grades_by_code.get(code)))
+            for code in selected_codes
+        }
+
+    interests = {i.strip() for i in (profile.interests or "").split(",") if i.strip()}
+    priority_tags = _priority_tags_for_interests(interests)
     course_rows = []
     for c in courses_qs:
         prereqs = prereq_map.get(c.code, [])
         missing = sorted(set(prereqs) - selected_codes)
         disabled = (c.code not in selected_codes) and bool(missing)
+        tags = {t.strip() for t in (c.tags or "").split(",") if t.strip()}
+        is_mandatory = c.kind == "обов'язкова"
+        highlight_high_grade = is_mandatory and bool(tags & priority_tags)
         course_rows.append(
             {
                 "course": c,
@@ -109,6 +182,10 @@ def student_courses(request):
                 "missing_prereqs": missing,
                 "checked": c.code in selected_codes,
                 "disabled": disabled,
+                "grade": grade_values.get(c.code, ""),
+                "is_mandatory": is_mandatory,
+                "highlight_high_grade": highlight_high_grade,
+                "high_grade_threshold": HIGH_GRADE_THRESHOLD,
             }
         )
 
@@ -120,9 +197,11 @@ def student_courses(request):
 @user_passes_test(is_student)
 def student_recommendations(request):
     profile = ensure_student_profile(request.user)
-    taken = taken_courses_for_student(profile)
+    enrollments = StudentCourseEnrollment.objects.filter(student=profile, status="completed").select_related("course")
+    taken = list(enrollments.values_list("course__code", flat=True))
+    grades = {code: grade for code, grade in enrollments.values_list("course__code", "grade") if grade is not None}
     try:
-        recs = recommend_for_profile(profile, taken, top_k=5)
+        recs = recommend_for_profile(profile, taken, grades, top_k=5)
     except RuntimeError as e:
         messages.error(request, str(e))
         rec_list = Recommendation.objects.filter(student=profile)
@@ -208,8 +287,10 @@ def teacher_students(request):
 @user_passes_test(is_teacher)
 def teacher_student_recommendations(request, student_id):
     student = get_object_or_404(StudentProfile, id=student_id)
-    taken = taken_courses_for_student(student)
-    recs = recommend_for_profile(student, taken, top_k=5)
+    enrollments = StudentCourseEnrollment.objects.filter(student=student, status="completed").select_related("course")
+    taken = list(enrollments.values_list("course__code", flat=True))
+    grades = {code: grade for code, grade in enrollments.values_list("course__code", "grade") if grade is not None}
+    recs = recommend_for_profile(student, taken, grades, top_k=5)
 
     codes = [code for code, _ in recs]
     courses_by_code = Course.objects.in_bulk(codes, field_name="code") if codes else {}

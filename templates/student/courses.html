@@ -2,6 +2,7 @@
 {% block content %}
 <a class="btn btn-outline-secondary btn-sm mb-3" href="{% url 'student_dashboard' %}">Повернутися</a>
 <h3>Мої дисципліни</h3>
+
 <form method="post">
   {% csrf_token %}
   {% if form.non_field_errors %}
@@ -12,7 +13,8 @@
   {% endif %}
 
   <p class="text-muted mb-2">
-    Відмітьте дисципліни, які ви вже пройшли. Дисципліни з незакритими пререквізитами недоступні для вибору.
+    Відмітьте дисципліни, які ви вже пройшли, і вкажіть бал (0–100).
+    Дисципліни з незакритими пререквізитами недоступні для вибору.
   </p>
 
   <table class="table table-sm align-middle">
@@ -22,6 +24,7 @@
         <th>Код</th>
         <th>Назва</th>
         <th style="width: 90px;">Семестр</th>
+        <th style="width: 140px;">Бал (0–100)</th>
         <th>Пререквізити</th>
       </tr>
     </thead>
@@ -38,13 +41,37 @@
                 id="course_{{ code_id }}"
                 data-prereqs="{% if row.prereqs %}{{ row.prereqs|join:',' }}{% endif %}"
                 data-hint-id="prereq_hint_{{ code_id }}"
+                data-grade-id="grade_{{ code_id }}"
                 {% if row.checked %}checked{% endif %}
                 {% if row.disabled %}disabled{% endif %}
               >
             </td>
             <td><label class="form-check-label" for="course_{{ code_id }}">{{ code }}</label></td>
-            <td>{{ row.course.name }}</td>
+            <td>
+              {{ row.course.name }}
+              {% if row.highlight_high_grade %}
+                <span class="badge text-bg-warning ms-2">
+                  Важливо: високий бал ≥ {{ row.high_grade_threshold }}
+                </span>
+              {% endif %}
+              {% if row.highlight_high_grade and row.checked and row.grade and row.grade|add:0 >= row.high_grade_threshold %}
+                <span class="badge text-bg-success ms-1">Ок</span>
+              {% endif %}
+            </td>
             <td>{{ row.course.semester }}</td>
+            <td>
+              <input
+                type="number"
+                class="form-control form-control-sm js-grade"
+                name="grade_{{ code }}"
+                id="grade_{{ code_id }}"
+                min="0"
+                max="100"
+                step="1"
+                value="{{ row.grade }}"
+                {% if not row.checked %}disabled{% endif %}
+              >
+            </td>
             <td>
               {% if row.prereqs %}
                 <div class="small">{{ row.prereqs|join:", " }}</div>
@@ -60,16 +87,22 @@
       {% endfor %}
     </tbody>
   </table>
+
   <button class="btn btn-primary">Зберегти</button>
 </form>
 
 <h5 class="mt-4">Поточний список</h5>
 <table class="table table-sm">
-  <tr><th>Код</th><th>Назва</th><th>Статус</th></tr>
+  <tr><th>Код</th><th>Назва</th><th>Статус</th><th>Бал</th></tr>
   {% for e in enrollments %}
-    <tr><td>{{ e.course.code }}</td><td>{{ e.course.name }}</td><td>{{ e.get_status_display }}</td></tr>
+    <tr>
+      <td>{{ e.course.code }}</td>
+      <td>{{ e.course.name }}</td>
+      <td>{{ e.get_status_display }}</td>
+      <td>{{ e.grade|default:"—" }}</td>
+    </tr>
   {% empty %}
-    <tr><td colspan="3">Немає обраних дисциплін.</td></tr>
+    <tr><td colspan="4">Немає обраних дисциплін.</td></tr>
   {% endfor %}
 </table>
 
@@ -90,6 +123,14 @@
         const unmet = prereqs.filter((p) => !selected.has(p));
 
         el.disabled = !el.checked && unmet.length > 0;
+
+        const gradeId = el.dataset.gradeId;
+        if (gradeId) {
+          const gradeInput = document.getElementById(gradeId);
+          if (gradeInput) {
+            gradeInput.disabled = !el.checked || el.disabled;
+          }
+        }
 
         const hintId = el.dataset.hintId;
         if (!hintId) return;

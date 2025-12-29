@@ -52,7 +52,7 @@ class StudentProfileAdmin(admin.ModelAdmin):
 
 @admin.register(StudentCourseEnrollment)
 class StudentCourseEnrollmentAdmin(admin.ModelAdmin):
-    list_display = ("student", "course", "status")
+    list_display = ("student", "course", "status", "grade")
     list_filter = ("status",)
 
 

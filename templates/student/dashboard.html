@@ -5,11 +5,37 @@
 <ul>
   <li>Курс: {{ profile.year }}</li>
   <li>Рівні: math {{ profile.math_level }}, prog {{ profile.prog_level }}, ai {{ profile.ai_level }}, soft {{ profile.soft_level }}</li>
-  <li>Інтереси: {{ profile.interests }}</li>
+  <li>Інтереси: {{ profile.interests|default:"—" }}</li>
 </ul>
+
 <a class="btn btn-secondary btn-sm" href="{% url 'student_profile' %}">Редагувати профіль</a>
-<a class="btn btn-secondary btn-sm" href="{% url 'student_courses' %}">Мої курси</a>
+<a class="btn btn-secondary btn-sm" href="{% url 'student_courses' %}">Мої дисципліни</a>
 <a class="btn btn-primary btn-sm" href="{% url 'student_recommendations' %}">Оновити рекомендації</a>
+
+{% if focus_courses %}
+  <h5 class="mt-4">Фокус на обов’язкових дисциплінах</h5>
+  <p class="text-muted mb-2">
+    На основі ваших інтересів рекомендовано отримати високий бал (≥ {{ high_grade_threshold }}) з таких обов’язкових дисциплін.
+  </p>
+  <table class="table table-sm">
+    <tr><th>Код</th><th>Назва</th><th>Семестр</th><th>Ваш бал</th><th>Статус</th></tr>
+    {% for item in focus_courses %}
+      <tr>
+        <td>{{ item.course.code }}</td>
+        <td>{{ item.course.name }}</td>
+        <td>{{ item.course.semester }}</td>
+        <td>{{ item.grade|default:"—" }}</td>
+        <td>
+          {% if item.needs_high_grade %}
+            <span class="badge text-bg-warning">Потрібен високий бал</span>
+          {% else %}
+            <span class="badge text-bg-success">Ок</span>
+          {% endif %}
+        </td>
+      </tr>
+    {% endfor %}
+  </table>
+{% endif %}
 
 <h5 class="mt-4">Останні рекомендації</h5>
 <table class="table table-sm">

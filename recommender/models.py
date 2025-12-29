@@ -51,12 +51,14 @@ class StudentCourseEnrollment(models.Model):
     student = models.ForeignKey(StudentProfile, on_delete=models.CASCADE, related_name="enrollments")
     course = models.ForeignKey(Course, on_delete=models.CASCADE)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="completed")
+    grade = models.IntegerField(null=True, blank=True)
 
     class Meta:
         unique_together = ("student", "course")
 
     def __str__(self):
-        return f"{self.student} -> {self.course} ({self.status})"
+        grade_part = f", {self.grade}" if self.grade is not None else ""
+        return f"{self.student} -> {self.course} ({self.status}{grade_part})"
 
 
 class Recommendation(models.Model):

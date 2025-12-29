@@ -1,0 +1,547 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" id="Definitions_StudyReco" targetNamespace="http://example.com/study_reco/bpmn" exporter="Camunda Modeler" exporterVersion="5.42.0">
+  <bpmn:collaboration id="Collaboration_StudyReco" name="Study Reco">
+    <bpmn:participant id="Participant_StudyReco" name="Study Reco (Django)" processRef="Process_StudyReco" />
+  </bpmn:collaboration>
+  <bpmn:dataStore id="DataStore_SQLite" name="SQLite DB (db.sqlite3)" />
+  <bpmn:dataStore id="DataStore_ModelJoblib" name="ML модель (var/sbm_model.joblib)" />
+  <bpmn:process id="Process_StudyReco" name="Study Reco: основні процеси" isExecutable="false">
+    <bpmn:documentation>
+      Модель відображає основні сценарії системи (за Django-в’ю та management-командами):
+      - Студент: оновлення пройдених курсів та рекомендацій
+      - Викладач: генерація рекомендацій для студента
+      - Адміністратор: імпорт каталогу та тренування моделі
+    </bpmn:documentation>
+    <bpmn:laneSet id="LaneSet_1">
+      <bpmn:lane id="Lane_Admin" name="Адміністратор">
+        <bpmn:flowNodeRef>Start_A</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>GW_AdminAction</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_EnsureStudentData</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_TrainModel</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_A_Train</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_SaveJoblib</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_ReadCatalogFiles</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_UpsertCourses</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_A_Import</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="Lane_Teacher" name="Викладач">
+        <bpmn:flowNodeRef>Task_OpenStudents</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_SelectStudent</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_LoadModel_Teacher</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>GW_ModelExists_Teacher</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_ComputeRecs_Teacher</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_SaveRecs_Teacher</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Start_T</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_ModelMissing_Teacher</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_T</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="Lane_Student" name="Студент">
+        <bpmn:flowNodeRef>Start_SR</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_UpdateRecs</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_LoadModel_Student</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_SC</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_OpenCourses</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Start_SC</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_SelectCourses</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>GW_SelectionValid</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_ShowValidationError</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_ModelMissing_Student</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_SaveEnrollments</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_ValidatePrereqs</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>GW_ModelExists_Student</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_ComputeRecs_Student</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_SR</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_SaveRecs_Student</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+    <bpmn:userTask id="Task_OpenStudents" name="Відкрити /teacher/students/" />
+    <bpmn:userTask id="Task_SelectStudent" name="Обрати студента та відкрити рекомендації" />
+    <bpmn:serviceTask id="Task_LoadModel_Teacher" name="Завантажити модель (joblib)" />
+    <bpmn:exclusiveGateway id="GW_ModelExists_Teacher" name="Модель існує?" />
+    <bpmn:serviceTask id="Task_ComputeRecs_Teacher" name="Розрахувати рекомендації (ML + фільтр пререквізитів)" />
+    <bpmn:serviceTask id="Task_SaveRecs_Teacher" name="Зберегти Recommendation (DB, транзакція)" />
+    <bpmn:startEvent id="Start_T" name="Початок: рекомендації для студента" />
+    <bpmn:startEvent id="Start_A" name="Початок: дії адміністратора" />
+    <bpmn:exclusiveGateway id="GW_AdminAction" name="Дія?" />
+    <bpmn:serviceTask id="Task_EnsureStudentData" name="Переконатися, що є student CSV (генерація за потреби)">
+      <bpmn:incoming>Flow_14akisp</bpmn:incoming>
+      <bpmn:outgoing>Flow_0o394ir</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:serviceTask id="Task_TrainModel" name="Навчити модель (MultinomialNB)">
+      <bpmn:outgoing>Flow_1tf9kgg</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:endEvent id="End_A_Train" name="Кінець: модель натреновано">
+      <bpmn:incoming>Flow_1tf9kgg</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:dataStoreReference id="DataStoreRef_ModelJoblib" dataStoreRef="DataStore_ModelJoblib" />
+    <bpmn:dataStoreReference id="DataStoreRef_SQLite" dataStoreRef="DataStore_SQLite" />
+    <bpmn:serviceTask id="Task_SaveJoblib" name="Зберегти артефакт моделі (joblib)" />
+    <bpmn:userTask id="Task_ModelMissing_Teacher" name="Помилка: модель не знайдено (обробка UNKNOWN)" />
+    <bpmn:endEvent id="End_T" name="Кінець: рекомендації показано" />
+    <bpmn:startEvent id="Start_SR" name="Початок: оновити рекомендації" />
+    <bpmn:userTask id="Task_UpdateRecs" name="Відкрити /student/recommendations/ та натиснути «Оновити»" />
+    <bpmn:serviceTask id="Task_LoadModel_Student" name="Завантажити модель (joblib)">
+      <bpmn:outgoing>Flow_15xnew6</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:endEvent id="End_SC" name="Кінець: курси збережено" />
+    <bpmn:sequenceFlow id="Flow_SC4" sourceRef="Task_ValidatePrereqs" targetRef="GW_SelectionValid" />
+    <bpmn:sequenceFlow id="Flow_SC_Valid" sourceRef="GW_SelectionValid" targetRef="GW_ModelExists_Student">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">так</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_SC_Invalid" sourceRef="GW_SelectionValid" targetRef="Task_ShowValidationError">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">ні</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_T1" sourceRef="Start_T" targetRef="Task_OpenStudents" />
+    <bpmn:sequenceFlow id="Flow_T2" sourceRef="Task_OpenStudents" targetRef="Task_SelectStudent" />
+    <bpmn:sequenceFlow id="Flow_T3" sourceRef="Task_SelectStudent" targetRef="Task_LoadModel_Teacher" />
+    <bpmn:sequenceFlow id="Flow_T4" sourceRef="Task_LoadModel_Teacher" targetRef="GW_ModelExists_Teacher" />
+    <bpmn:sequenceFlow id="Flow_T_Ok" sourceRef="GW_ModelExists_Teacher" targetRef="Task_ComputeRecs_Teacher">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">так</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_T_Missing" sourceRef="GW_ModelExists_Teacher" targetRef="Task_ModelMissing_Teacher">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">ні</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_T5" sourceRef="Task_ComputeRecs_Teacher" targetRef="Task_SaveRecs_Teacher" />
+    <bpmn:sequenceFlow id="Flow_T6" sourceRef="Task_SaveRecs_Teacher" targetRef="End_T" />
+    <bpmn:sequenceFlow id="Flow_A1" sourceRef="Start_A" targetRef="GW_AdminAction" />
+    <bpmn:sequenceFlow id="Flow_A_Import" sourceRef="GW_AdminAction" targetRef="Task_UpsertCourses">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">імпорт каталогу</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_A_Train" sourceRef="GW_AdminAction" targetRef="Task_EnsureStudentData">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">тренування моделі</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_063efve" sourceRef="Task_ReadCatalogFiles" targetRef="Task_UpsertCourses" />
+    <bpmn:sequenceFlow id="Flow_A4" sourceRef="Task_EnsureStudentData" targetRef="Task_TrainModel" />
+    <bpmn:sequenceFlow id="Flow_0o394ir" sourceRef="Task_EnsureStudentData" targetRef="Task_UpsertCourses" />
+    <bpmn:sequenceFlow id="Flow_A3" sourceRef="Task_UpsertCourses" targetRef="End_A_Import" />
+    <bpmn:sequenceFlow id="Flow_A5" sourceRef="Task_TrainModel" targetRef="Task_SaveJoblib" />
+    <bpmn:sequenceFlow id="Flow_1tf9kgg" sourceRef="Task_TrainModel" targetRef="End_A_Train" />
+    <bpmn:sequenceFlow id="Flow_A6" sourceRef="Task_SaveJoblib" targetRef="End_A_Import" />
+    <bpmn:sequenceFlow id="Flow_T_MissingEnd" sourceRef="Task_ModelMissing_Teacher" targetRef="End_T" />
+    <bpmn:sequenceFlow id="Flow_SR1" sourceRef="Start_SR" targetRef="Task_UpdateRecs" />
+    <bpmn:sequenceFlow id="Flow_SR_Ok" sourceRef="GW_ModelExists_Student" targetRef="Task_ComputeRecs_Student">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">так</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_SC_Retry" sourceRef="Task_ShowValidationError" targetRef="Task_SelectCourses" />
+    <bpmn:sequenceFlow id="Flow_SR_Missing" sourceRef="GW_ModelExists_Student" targetRef="Task_ModelMissing_Student">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">ні</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_0k9685v" sourceRef="Task_ComputeRecs_Student" targetRef="Task_SaveRecs_Student" />
+    <bpmn:sequenceFlow id="Flow_SC1" sourceRef="Start_SC" targetRef="Task_OpenCourses" />
+    <bpmn:sequenceFlow id="Flow_SC2" sourceRef="Task_OpenCourses" targetRef="Task_SelectCourses" />
+    <bpmn:sequenceFlow id="Flow_15xnew6" sourceRef="Task_LoadModel_Student" targetRef="GW_ModelExists_Student" />
+    <bpmn:sequenceFlow id="Flow_SC3" sourceRef="Task_SelectCourses" targetRef="Task_ValidatePrereqs" />
+    <bpmn:sequenceFlow id="Flow_SR2" sourceRef="Task_UpdateRecs" targetRef="Task_LoadModel_Student" />
+    <bpmn:sequenceFlow id="Flow_SC_End" sourceRef="Task_SaveEnrollments" targetRef="End_SC" />
+    <bpmn:sequenceFlow id="Flow_SR5" sourceRef="Task_SaveRecs_Student" targetRef="End_SR" />
+    <bpmn:userTask id="Task_OpenCourses" name="Відкрити /student/courses/" />
+    <bpmn:startEvent id="Start_SC" name="Початок: оновити пройдені курси" />
+    <bpmn:userTask id="Task_SelectCourses" name="Обрати пройдені курси та надіслати">
+      <bpmn:incoming>Flow_1o9h1ws</bpmn:incoming>
+      <bpmn:incoming>Flow_SC_Retry</bpmn:incoming>
+    </bpmn:userTask>
+    <bpmn:exclusiveGateway id="GW_SelectionValid" name="Вибір коректний?" />
+    <bpmn:userTask id="Task_ShowValidationError" name="Показати помилку валідації" />
+    <bpmn:sequenceFlow id="Flow_1dh33zd" sourceRef="GW_ModelExists_Student" targetRef="Task_SaveEnrollments" />
+    <bpmn:userTask id="Task_ModelMissing_Student" name="Показати помилку: модель не знайдено" />
+    <bpmn:serviceTask id="Task_SaveEnrollments" name="Зберегти StudentCourseEnrollment (DB)">
+      <bpmn:incoming>Flow_1dh33zd</bpmn:incoming>
+    </bpmn:serviceTask>
+    <bpmn:serviceTask id="Task_ValidatePrereqs" name="Валідація пререквізитів (сервер)" />
+    <bpmn:sequenceFlow id="Flow_1o9h1ws" sourceRef="GW_ModelExists_Student" targetRef="Task_SelectCourses" />
+    <bpmn:exclusiveGateway id="GW_ModelExists_Student" name="Модель існує?">
+      <bpmn:incoming>Flow_SC_Valid</bpmn:incoming>
+      <bpmn:incoming>Flow_15xnew6</bpmn:incoming>
+      <bpmn:outgoing>Flow_1dh33zd</bpmn:outgoing>
+      <bpmn:outgoing>Flow_1o9h1ws</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:serviceTask id="Task_ComputeRecs_Student" name="Розрахувати рекомендації (ML + фільтр пререквізитів)">
+      <bpmn:outgoing>Flow_0k9685v</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:endEvent id="End_SR" name="Кінець: рекомендації показано" />
+    <bpmn:serviceTask id="Task_SaveRecs_Student" name="Зберегти Recommendation (DB, транзакція)">
+      <bpmn:incoming>Flow_0k9685v</bpmn:incoming>
+    </bpmn:serviceTask>
+    <bpmn:sequenceFlow id="Flow_05a0l9o" sourceRef="Task_UpsertCourses" targetRef="Task_ReadCatalogFiles" />
+    <bpmn:serviceTask id="Task_ReadCatalogFiles" name="Зчитати каталог (CSV + XLSX)">
+      <bpmn:incoming>Flow_05a0l9o</bpmn:incoming>
+      <bpmn:outgoing>Flow_063efve</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:serviceTask id="Task_UpsertCourses" name="Імпорт/оновлення Course + пререквізитів (DB)">
+      <bpmn:incoming>Flow_0o394ir</bpmn:incoming>
+      <bpmn:incoming>Flow_A_Import</bpmn:incoming>
+      <bpmn:incoming>Flow_063efve</bpmn:incoming>
+      <bpmn:outgoing>Flow_05a0l9o</bpmn:outgoing>
+      <bpmn:outgoing>Flow_14akisp</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:sequenceFlow id="Flow_14akisp" sourceRef="Task_UpsertCourses" targetRef="Task_EnsureStudentData" />
+    <bpmn:endEvent id="End_A_Import" name="Кінець: каталог імпортовано">
+      <bpmn:incoming>Flow_A6</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:association id="Assoc_LoadModelTeacher_File" sourceRef="Task_LoadModel_Teacher" targetRef="DataStoreRef_ModelJoblib" />
+    <bpmn:association id="Assoc_SaveRecsTeacher_DB" sourceRef="Task_SaveRecs_Teacher" targetRef="DataStoreRef_SQLite" />
+    <bpmn:association id="Assoc_LoadModelStudent_File" sourceRef="Task_LoadModel_Student" targetRef="DataStoreRef_ModelJoblib" />
+    <bpmn:association id="Assoc_SaveJoblib_File" sourceRef="Task_SaveJoblib" targetRef="DataStoreRef_ModelJoblib" />
+    <bpmn:association id="Assoc_SaveEnrollments_DB" sourceRef="Task_SaveEnrollments" targetRef="DataStoreRef_SQLite" />
+    <bpmn:association id="Assoc_SaveRecsStudent_DB" sourceRef="Task_SaveRecs_Student" targetRef="DataStoreRef_SQLite" />
+    <bpmn:association id="Assoc_UpsertCourses_DB" sourceRef="Task_UpsertCourses" targetRef="DataStoreRef_SQLite" />
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_StudyReco" name="Study Reco">
+    <bpmndi:BPMNPlane id="BPMNPlane_StudyReco" bpmnElement="Collaboration_StudyReco">
+      <bpmndi:BPMNShape id="Shape_Participant_StudyReco" bpmnElement="Participant_StudyReco" isHorizontal="true">
+        <dc:Bounds x="160" y="80" width="2230" height="1440" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Lane_Student" bpmnElement="Lane_Student" isHorizontal="true">
+        <dc:Bounds x="190" y="80" width="2200" height="635" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Lane_Teacher" bpmnElement="Lane_Teacher" isHorizontal="true">
+        <dc:Bounds x="190" y="715" width="2200" height="230" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Lane_Admin" bpmnElement="Lane_Admin" isHorizontal="true">
+        <dc:Bounds x="190" y="945" width="2200" height="575" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_OpenStudents" bpmnElement="Task_OpenStudents">
+        <dc:Bounds x="450" y="745" width="240" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_SelectStudent" bpmnElement="Task_SelectStudent">
+        <dc:Bounds x="710" y="745" width="220" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_LoadModel_Teacher" bpmnElement="Task_LoadModel_Teacher">
+        <dc:Bounds x="950" y="745" width="200" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_GW_ModelExists_Teacher" bpmnElement="GW_ModelExists_Teacher" isMarkerVisible="true">
+        <dc:Bounds x="1170" y="760" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1158" y="736" width="74" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_ComputeRecs_Teacher" bpmnElement="Task_ComputeRecs_Teacher">
+        <dc:Bounds x="1240" y="745" width="240" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_SaveRecs_Teacher" bpmnElement="Task_SaveRecs_Teacher">
+        <dc:Bounds x="1500" y="745" width="220" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Start_T" bpmnElement="Start_T">
+        <dc:Bounds x="252" y="767" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="225" y="803" width="90" height="40" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Start_A" bpmnElement="Start_A">
+        <dc:Bounds x="272" y="1167" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="251" y="1203" width="78" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_GW_AdminAction" bpmnElement="GW_AdminAction" isMarkerVisible="true">
+        <dc:Bounds x="405" y="1160" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="419" y="1136" width="22" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_EnsureStudentData" bpmnElement="Task_EnsureStudentData">
+        <dc:Bounds x="510" y="1145" width="280" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_TrainModel" bpmnElement="Task_TrainModel">
+        <dc:Bounds x="1100" y="1145" width="220" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_A_Train" bpmnElement="End_A_Train">
+        <dc:Bounds x="1552" y="1167" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1531" y="1213" width="78" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_DataStoreRef_ModelJoblib" bpmnElement="DataStoreRef_ModelJoblib">
+        <dc:Bounds x="1980" y="1195" width="240" height="60" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_DataStoreRef_SQLite" bpmnElement="DataStoreRef_SQLite">
+        <dc:Bounds x="1980" y="1070" width="240" height="60" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_SaveJoblib" bpmnElement="Task_SaveJoblib">
+        <dc:Bounds x="1080" y="955" width="260" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_ModelMissing_Teacher" bpmnElement="Task_ModelMissing_Teacher">
+        <dc:Bounds x="1045" y="885" width="300" height="40" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_T" bpmnElement="End_T">
+        <dc:Bounds x="1922" y="767" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1906" y="717" width="68" height="40" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Start_SR" bpmnElement="Start_SR">
+        <dc:Bounds x="252" y="517" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="226" y="553" width="89" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_UpdateRecs" bpmnElement="Task_UpdateRecs">
+        <dc:Bounds x="460" y="495" width="220" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_LoadModel_Student" bpmnElement="Task_LoadModel_Student">
+        <dc:Bounds x="800" y="495" width="200" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_SC" bpmnElement="End_SC">
+        <dc:Bounds x="2252" y="517" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="2236" y="553" width="68" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_OpenCourses" bpmnElement="Task_OpenCourses">
+        <dc:Bounds x="440" y="110" width="200" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Start_SC" bpmnElement="Start_SC">
+        <dc:Bounds x="252" y="132" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="226" y="168" width="89" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_SelectCourses" bpmnElement="Task_SelectCourses">
+        <dc:Bounds x="770" y="100" width="220" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_GW_SelectionValid" bpmnElement="GW_SelectionValid" isMarkerVisible="true">
+        <dc:Bounds x="1170" y="295" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1230" y="313" width="90" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_ShowValidationError" bpmnElement="Task_ShowValidationError">
+        <dc:Bounds x="1085" y="160" width="220" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_ModelMissing_Student" bpmnElement="Task_ModelMissing_Student">
+        <dc:Bounds x="1185" y="660" width="270" height="40" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_SaveEnrollments" bpmnElement="Task_SaveEnrollments">
+        <dc:Bounds x="1730" y="495" width="220" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_ValidatePrereqs" bpmnElement="Task_ValidatePrereqs">
+        <dc:Bounds x="770" y="280" width="220" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_GW_ModelExists_Student" bpmnElement="GW_ModelExists_Student" isMarkerVisible="true">
+        <dc:Bounds x="1295" y="510" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1283" y="570" width="74" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_ComputeRecs_Student" bpmnElement="Task_ComputeRecs_Student">
+        <dc:Bounds x="1200" y="350" width="240" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_SR" bpmnElement="End_SR">
+        <dc:Bounds x="2252" y="242" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="2236" y="290" width="68" height="40" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_SaveRecs_Student" bpmnElement="Task_SaveRecs_Student">
+        <dc:Bounds x="1730" y="220" width="220" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_ReadCatalogFiles" bpmnElement="Task_ReadCatalogFiles">
+        <dc:Bounds x="515" y="1420" width="270" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_UpsertCourses" bpmnElement="Task_UpsertCourses">
+        <dc:Bounds x="510" y="1300" width="280" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_A_Import" bpmnElement="End_A_Import">
+        <dc:Bounds x="1552" y="1352" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1530" y="1315" width="79" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Edge_Assoc_SaveEnrollments_DB" bpmnElement="Assoc_SaveEnrollments_DB">
+        <di:waypoint x="1846" y="575" />
+        <di:waypoint x="2085" y="1070" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Assoc_SaveRecsStudent_DB" bpmnElement="Assoc_SaveRecsStudent_DB">
+        <di:waypoint x="1817" y="300" />
+        <di:waypoint x="2090" y="1070" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Assoc_UpsertCourses_DB" bpmnElement="Assoc_UpsertCourses_DB">
+        <di:waypoint x="790" y="1353" />
+        <di:waypoint x="1980" y="1123" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_SC4" bpmnElement="Flow_SC4">
+        <di:waypoint x="990" y="320" />
+        <di:waypoint x="1170" y="320" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_SC_Valid" bpmnElement="Flow_SC_Valid">
+        <di:waypoint x="1195" y="345" />
+        <di:waypoint x="1195" y="535" />
+        <di:waypoint x="1295" y="535" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_SC_Invalid" bpmnElement="Flow_SC_Invalid">
+        <di:waypoint x="1195" y="295" />
+        <di:waypoint x="1195" y="240" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_T1" bpmnElement="Flow_T1">
+        <di:waypoint x="288" y="785" />
+        <di:waypoint x="450" y="785" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_T2" bpmnElement="Flow_T2">
+        <di:waypoint x="690" y="785" />
+        <di:waypoint x="710" y="785" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_T3" bpmnElement="Flow_T3">
+        <di:waypoint x="930" y="785" />
+        <di:waypoint x="950" y="785" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_T4" bpmnElement="Flow_T4">
+        <di:waypoint x="1150" y="785" />
+        <di:waypoint x="1170" y="785" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_T_Ok" bpmnElement="Flow_T_Ok">
+        <di:waypoint x="1220" y="785" />
+        <di:waypoint x="1240" y="785" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_T_Missing" bpmnElement="Flow_T_Missing">
+        <di:waypoint x="1195" y="810" />
+        <di:waypoint x="1195" y="885" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_T5" bpmnElement="Flow_T5">
+        <di:waypoint x="1480" y="785" />
+        <di:waypoint x="1500" y="785" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_T6" bpmnElement="Flow_T6">
+        <di:waypoint x="1720" y="785" />
+        <di:waypoint x="1922" y="785" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_A1" bpmnElement="Flow_A1">
+        <di:waypoint x="308" y="1185" />
+        <di:waypoint x="405" y="1185" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_A_Import" bpmnElement="Flow_A_Import">
+        <di:waypoint x="430" y="1210" />
+        <di:waypoint x="430" y="1340" />
+        <di:waypoint x="510" y="1340" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_A_Train" bpmnElement="Flow_A_Train">
+        <di:waypoint x="455" y="1185" />
+        <di:waypoint x="510" y="1185" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_063efve_di" bpmnElement="Flow_063efve">
+        <di:waypoint x="650" y="1420" />
+        <di:waypoint x="650" y="1380" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_A4" bpmnElement="Flow_A4">
+        <di:waypoint x="790" y="1185" />
+        <di:waypoint x="1100" y="1185" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_0o394ir_di" bpmnElement="Flow_0o394ir">
+        <di:waypoint x="790" y="1185" />
+        <di:waypoint x="825" y="1185" />
+        <di:waypoint x="825" y="1340" />
+        <di:waypoint x="790" y="1340" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_A3" bpmnElement="Flow_A3">
+        <di:waypoint x="790" y="1370" />
+        <di:waypoint x="1552" y="1370" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_A5" bpmnElement="Flow_A5">
+        <di:waypoint x="1210" y="1145" />
+        <di:waypoint x="1210" y="1035" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_1tf9kgg_di" bpmnElement="Flow_1tf9kgg">
+        <di:waypoint x="1320" y="1185" />
+        <di:waypoint x="1552" y="1185" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_A6" bpmnElement="Flow_A6">
+        <di:waypoint x="1340" y="995" />
+        <di:waypoint x="1396" y="995" />
+        <di:waypoint x="1396" y="1370" />
+        <di:waypoint x="1552" y="1370" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_T_MissingEnd" bpmnElement="Flow_T_MissingEnd">
+        <di:waypoint x="1345" y="905" />
+        <di:waypoint x="1940" y="905" />
+        <di:waypoint x="1940" y="803" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_SR1" bpmnElement="Flow_SR1">
+        <di:waypoint x="288" y="535" />
+        <di:waypoint x="460" y="535" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_SR_Ok" bpmnElement="Flow_SR_Ok">
+        <di:waypoint x="1320" y="510" />
+        <di:waypoint x="1320" y="430" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_SC_Retry" bpmnElement="Flow_SC_Retry">
+        <di:waypoint x="1085" y="200" />
+        <di:waypoint x="1038" y="200" />
+        <di:waypoint x="1038" y="140" />
+        <di:waypoint x="990" y="140" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_SR_Missing" bpmnElement="Flow_SR_Missing">
+        <di:waypoint x="1320" y="560" />
+        <di:waypoint x="1320" y="660" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_0k9685v_di" bpmnElement="Flow_0k9685v">
+        <di:waypoint x="1310" y="350" />
+        <di:waypoint x="1310" y="260" />
+        <di:waypoint x="1730" y="260" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_SC1" bpmnElement="Flow_SC1">
+        <di:waypoint x="288" y="150" />
+        <di:waypoint x="440" y="150" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_SC2" bpmnElement="Flow_SC2">
+        <di:waypoint x="640" y="150" />
+        <di:waypoint x="705" y="150" />
+        <di:waypoint x="705" y="140" />
+        <di:waypoint x="770" y="140" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_15xnew6_di" bpmnElement="Flow_15xnew6">
+        <di:waypoint x="1000" y="535" />
+        <di:waypoint x="1295" y="535" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_SC3" bpmnElement="Flow_SC3">
+        <di:waypoint x="880" y="180" />
+        <di:waypoint x="880" y="280" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_SR2" bpmnElement="Flow_SR2">
+        <di:waypoint x="680" y="535" />
+        <di:waypoint x="800" y="535" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_SC_End" bpmnElement="Flow_SC_End">
+        <di:waypoint x="1950" y="535" />
+        <di:waypoint x="2252" y="535" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_SR5" bpmnElement="Flow_SR5">
+        <di:waypoint x="1950" y="260" />
+        <di:waypoint x="2252" y="260" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Assoc_LoadModelTeacher_File" bpmnElement="Assoc_LoadModelTeacher_File">
+        <di:waypoint x="1050" y="825" />
+        <di:waypoint x="2021" y="1195" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Assoc_SaveRecsTeacher_DB" bpmnElement="Assoc_SaveRecsTeacher_DB">
+        <di:waypoint x="1662" y="825" />
+        <di:waypoint x="2052" y="1070" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Assoc_LoadModelStudent_File" bpmnElement="Assoc_LoadModelStudent_File">
+        <di:waypoint x="900" y="575" />
+        <di:waypoint x="2045" y="1195" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Assoc_SaveJoblib_File" bpmnElement="Assoc_SaveJoblib_File">
+        <di:waypoint x="1210" y="1035" />
+        <di:waypoint x="1980" y="1199" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_1dh33zd_di" bpmnElement="Flow_1dh33zd">
+        <di:waypoint x="1345" y="535" />
+        <di:waypoint x="1730" y="535" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_1o9h1ws_di" bpmnElement="Flow_1o9h1ws">
+        <di:waypoint x="1345" y="535" />
+        <di:waypoint x="1510" y="535" />
+        <di:waypoint x="1510" y="140" />
+        <di:waypoint x="990" y="140" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_05a0l9o_di" bpmnElement="Flow_05a0l9o">
+        <di:waypoint x="650" y="1380" />
+        <di:waypoint x="650" y="1420" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_14akisp_di" bpmnElement="Flow_14akisp">
+        <di:waypoint x="650" y="1300" />
+        <di:waypoint x="650" y="1225" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>
