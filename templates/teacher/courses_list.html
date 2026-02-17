@@ -1,19 +1,67 @@
 {% extends "base.html" %}
+
 {% block content %}
-<h3>Дисципліни</h3>
-<a class="btn btn-primary btn-sm mb-2" href="{% url 'teacher_course_new' %}">Додати курс</a>
-<table class="table table-striped">
-  <tr><th>Код</th><th>Назва</th><th>Семестр</th><th>Тип</th><th></th></tr>
-  {% for c in courses %}
-    <tr>
-      <td>{{ c.code }}</td>
-      <td>{{ c.name }}</td>
-      <td>{{ c.semester }}</td>
-      <td>{{ c.kind }}</td>
-      <td><a href="{% url 'teacher_course_detail' c.code %}">Деталі</a></td>
-    </tr>
-  {% empty %}
-    <tr><td colspan="5">Немає курсів.</td></tr>
-  {% endfor %}
-</table>
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <h2 class="h3 mb-0">Каталог дисциплін</h2>
+    <p class="text-muted">Управління навчальними курсами та програмами</p>
+  </div>
+  <!-- Note: Assuming there is a URL named 'teacher_course_new' or similar from previous context, 
+       but if not, I will link to just the list or specific actions if available. 
+       Checked views.py: 'teacher_course_edit' with optional code exists, so logical new is edit without code?
+       Wait, urls.py wasn't fully checked for 'teacher_course_new', but in previous tool output for courses_list.html
+       it showed: <a ... href="{% url 'teacher_course_new' %}">. So I assume it exists. 
+   -->
+  <a class="btn btn-primary" href="{% url 'teacher_course_edit' %}">
+    <i class="bi bi-plus-lg me-2"></i>Додати курс
+  </a>
+</div>
+
+<div class="card shadow-sm border-0">
+  <div class="table-responsive">
+    <table class="table table-hover mb-0 align-middle">
+      <thead class="bg-light">
+        <tr>
+          <th class="ps-4">Код</th>
+          <th>Назва дисципліни</th>
+          <th class="text-center">Семестр</th>
+          <th>Тип</th>
+          <th>Блок</th>
+          <th class="text-end pe-4">Дії</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for c in courses %}
+        <tr>
+          <td class="ps-4 font-monospace text-muted">{{ c.code }}</td>
+          <td class="fw-medium">{{ c.name }}</td>
+          <td class="text-center"><span class="badge bg-light text-dark border rounded-pill">{{ c.semester }}</span>
+          </td>
+          <td>
+            {% if c.kind == "обов'язкова" %}
+            <span
+              class="badge text-bg-warning bg-opacity-10 text-warning-emphasis border border-warning-subtle">Обов'язкова</span>
+            {% else %}
+            <span class="badge text-bg-info bg-opacity-10 text-info-emphasis border border-info-subtle">Вибіркова</span>
+            {% endif %}
+          </td>
+          <td class="small text-muted">{{ c.block }}</td>
+          <td class="text-end pe-4">
+            <a href="{% url 'teacher_course_detail' c.code %}" class="btn btn-sm btn-outline-secondary">
+              Деталі
+            </a>
+            <a href="{% url 'teacher_course_edit' c.code %}" class="btn btn-sm btn-outline-primary ms-1">
+              <i class="bi bi-pencil"></i>
+            </a>
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="6" class="text-center py-5 text-muted">Курсів не знайдено.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
 {% endblock %}

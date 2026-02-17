@@ -1,49 +1,155 @@
 {% extends "base.html" %}
+
 {% block content %}
-<h3>Кабінет студента</h3>
-<p>Вітаємо, {{ profile.user.get_full_name|default:profile.user.username }}!</p>
-<ul>
-  <li>Курс: {{ profile.year }}</li>
-  <li>Рівні: math {{ profile.math_level }}, prog {{ profile.prog_level }}, ai {{ profile.ai_level }}, soft {{ profile.soft_level }}</li>
-  <li>Інтереси: {{ profile.interests|default:"—" }}</li>
-</ul>
+<div class="row mb-4">
+  <div class="col-md-12">
+    <div class="card bg-white">
+      <div class="card-body d-flex justify-content-between align-items-center">
+        <div>
+          <h2 class="h4 mb-1">Кабінет студента</h2>
+          <p class="text-muted mb-0">Вітаємо, {{ profile.user.get_full_name|default:profile.user.username }}!</p>
+        </div>
+        <div class="d-flex gap-2">
+          <a class="btn btn-outline-primary" href="{% url 'student_profile' %}"><i
+              class="bi bi-pencil me-1"></i>Профіль</a>
+          <a class="btn btn-outline-primary" href="{% url 'student_courses' %}"><i
+              class="bi bi-book me-1"></i>Дисципліни</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
 
-<a class="btn btn-secondary btn-sm" href="{% url 'student_profile' %}">Редагувати профіль</a>
-<a class="btn btn-secondary btn-sm" href="{% url 'student_courses' %}">Мої дисципліни</a>
-<a class="btn btn-primary btn-sm" href="{% url 'student_recommendations' %}">Оновити рекомендації</a>
+<div class="row g-4">
+  <!-- Profile Summary Card -->
+  <div class="col-md-4">
+    <div class="card h-100">
+      <div class="card-header border-0 bg-transparent py-3">
+        <h5 class="mb-0 text-primary-custom"><i class="bi bi-person-badge me-2"></i>Ваш Профіль</h5>
+      </div>
+      <div class="card-body pt-0">
+        <ul class="list-group list-group-flush">
+          <li class="list-group-item d-flex justify-content-between px-0">
+            <span class="text-muted">Курс навчання</span>
+            <span class="fw-bold">{{ profile.year }}</span>
+          </li>
+          <li class="list-group-item px-0">
+            <div class="mb-2 text-muted">Рівні навичок</div>
+            <div class="d-flex justify-content-between small mb-1"><span>Math</span><span>{{ profile.math_level}}</span>
+            </div>
+            <div class="progress mb-2" style="height: 4px;">
+              <div class="progress-bar bg-info" style="width: {% widthratio profile.math_level 1 100 %}%"></div>
+            </div>
 
-{% if focus_courses %}
-  <h5 class="mt-4">Фокус на обов’язкових дисциплінах</h5>
-  <p class="text-muted mb-2">
-    На основі ваших інтересів рекомендовано отримати високий бал (≥ {{ high_grade_threshold }}) з таких обов’язкових дисциплін.
-  </p>
-  <table class="table table-sm">
-    <tr><th>Код</th><th>Назва</th><th>Семестр</th><th>Ваш бал</th><th>Статус</th></tr>
-    {% for item in focus_courses %}
-      <tr>
-        <td>{{ item.course.code }}</td>
-        <td>{{ item.course.name }}</td>
-        <td>{{ item.course.semester }}</td>
-        <td>{{ item.grade|default:"—" }}</td>
-        <td>
-          {% if item.needs_high_grade %}
-            <span class="badge text-bg-warning">Потрібен високий бал</span>
-          {% else %}
-            <span class="badge text-bg-success">Ок</span>
-          {% endif %}
-        </td>
-      </tr>
-    {% endfor %}
-  </table>
-{% endif %}
+            <div class="d-flex justify-content-between small mb-1"><span>Prog</span><span>{{ profile.prog_level}}</span>
+            </div>
+            <div class="progress mb-2" style="height: 4px;">
+              <div class="progress-bar bg-success" style="width: {% widthratio profile.prog_level 1 100 %}%"></div>
+            </div>
 
-<h5 class="mt-4">Останні рекомендації</h5>
-<table class="table table-sm">
-  <tr><th>Код</th><th>Назва</th><th>Оцінка</th></tr>
-  {% for r in recommendations %}
-    <tr><td>{{ r.course.code }}</td><td>{{ r.course.name }}</td><td>{{ r.score|floatformat:3 }}</td></tr>
-  {% empty %}
-    <tr><td colspan="3">Поки немає рекомендацій.</td></tr>
-  {% endfor %}
-</table>
+            <div class="d-flex justify-content-between small mb-1"><span>AI</span><span>{{ profile.ai_level }}</span>
+            </div>
+            <div class="progress mb-2" style="height: 4px;">
+              <div class="progress-bar bg-primary" style="width: {% widthratio profile.ai_level 1 100 %}%"></div>
+            </div>
+
+            <div class="d-flex justify-content-between small mb-1"><span>Soft</span><span>{{ profile.soft_level}}</span>
+            </div>
+            <div class="progress" style="height: 4px;">
+              <div class="progress-bar bg-warning" style="width: {% widthratio profile.soft_level 1 100 %}%"></div>
+            </div>
+          </li>
+          <li class="list-group-item px-0">
+            <span class="text-muted d-block mb-1">Інтереси</span>
+            {% for interest in interests_list %}
+            <span class="badge bg-light text-dark border me-1">{{ interest }}</span>
+            {% empty %}
+            <span class="text-muted small">—</span>
+            {% endfor %}
+          </li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-8">
+    <!-- Recommendations -->
+    <div class="card mb-4">
+      <div class="card-header border-0 bg-transparent py-3 d-flex justify-content-between align-items-center">
+        <h5 class="mb-0 text-primary-custom"><i class="bi bi-stars me-2"></i>Рекомендації для вас</h5>
+        <a class="btn btn-sm btn-primary" href="{% url 'student_recommendations' %}">Оновити</a>
+      </div>
+      <div class="table-responsive">
+        <table class="table table-hover mb-0 align-middle">
+          <thead class="bg-light">
+            <tr>
+              <th class="ps-4">Код</th>
+              <th>Назва</th>
+              <th class="text-end pe-4">Score</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for r in recommendations %}
+            <tr>
+              <td class="ps-4 text-nowrap font-monospace text-muted">{{ r.course.code }}</td>
+              <td class="fw-medium">{{ r.course.name }}</td>
+              <td class="text-end pe-4">
+                <span class="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill">
+                  {{ r.score|floatformat:3 }}
+                </span>
+              </td>
+            </tr>
+            {% empty %}
+            <tr>
+              <td colspan="3" class="text-center py-4 text-muted">Поки немає рекомендацій.</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Focus Courses -->
+    {% if focus_courses %}
+    <div class="card">
+      <div class="card-header border-0 bg-transparent py-3">
+        <h5 class="mb-0 text-danger"><i class="bi bi-exclamation-circle me-2"></i>Фокус уваги</h5>
+        <p class="text-muted small mb-0 mt-1">
+          Обов’язкові дисципліни, важливі для ваших інтересів, де бажано мати бал ≥ {{ high_grade_threshold }}.
+        </p>
+      </div>
+      <div class="table-responsive">
+        <table class="table table-hover mb-0 align-middle">
+          <thead class="bg-light">
+            <tr>
+              <th class="ps-4">Код</th>
+              <th>Назва</th>
+              <th>Сем.</th>
+              <th>Бал</th>
+              <th class="text-end pe-4">Статус</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for item in focus_courses %}
+            <tr>
+              <td class="ps-4 font-monospace small text-muted">{{ item.course.code }}</td>
+              <td>{{ item.course.name }}</td>
+              <td>{{ item.course.semester }}</td>
+              <td class="fw-bold">{{ item.grade|default:"—" }}</td>
+              <td class="text-end pe-4">
+                {% if item.needs_high_grade %}
+                <span class="badge text-bg-warning">Покращити</span>
+                {% else %}
+                <span class="badge text-bg-success"><i class="bi bi-check-lg"></i></span>
+                {% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+</div>
 {% endblock %}

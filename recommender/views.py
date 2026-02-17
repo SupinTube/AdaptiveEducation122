@@ -95,11 +95,14 @@ def student_dashboard(request):
             }
         )
 
+    interests_list = sorted([i for i in interests if i])
+
     return render(
         request,
         "student/dashboard.html",
         {
             "profile": profile,
+            "interests_list": interests_list,
             "recommendations": recos,
             "focus_courses": focus_courses,
             "high_grade_threshold": HIGH_GRADE_THRESHOLD,

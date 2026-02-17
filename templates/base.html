@@ -1,62 +1,140 @@
 {% load static %}
 <!doctype html>
 <html lang="uk">
+
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Study Reco</title>
+  <title>Study Reco | Персоналізовані навчальні траєкторії</title>
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+    rel="stylesheet">
+
+  <!-- Bootstrap 5 -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+
+  <!-- Custom CSS -->
+  <link rel="stylesheet" href="{% static 'css/style.css' %}">
+  <!-- Icons -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 </head>
+
 <body>
-<nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4">
-  <div class="container-fluid">
-    <a class="navbar-brand" href="{% url 'home' %}">Study Reco</a>
-    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav"
-            aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
-      <span class="navbar-toggler-icon"></span>
-    </button>
-    <div class="collapse navbar-collapse" id="navbarNav">
-      <ul class="navbar-nav me-auto">
-        <li class="nav-item"><a class="nav-link" href="{% url 'home' %}">Головна</a></li>
 
-        {% if user.is_authenticated and is_student %}
-          <li class="nav-item"><a class="nav-link" href="{% url 'student_dashboard' %}">Студент</a></li>
-          <li class="nav-item"><a class="nav-link" href="{% url 'student_profile' %}">Профіль</a></li>
-          <li class="nav-item"><a class="nav-link" href="{% url 'student_courses' %}">Пройдені курси</a></li>
-          <li class="nav-item"><a class="nav-link" href="{% url 'student_recommendations' %}">Рекомендації</a></li>
-        {% endif %}
+  <nav class="navbar navbar-expand-lg navbar-light">
+    <div class="container">
+      <a class="navbar-brand" href="{% url 'home' %}">
+        <i class="bi bi-mortarboard-fill me-2"></i>Study Reco
+      </a>
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav"
+        aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="collapse navbar-collapse" id="navbarNav">
+        <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+          <li class="nav-item">
+            <a class="nav-link" href="{% url 'home' %}">Головна</a>
+          </li>
 
-        {% if user.is_authenticated and is_teacher %}
-          <li class="nav-item"><a class="nav-link" href="{% url 'teacher_dashboard' %}">Викладач</a></li>
-          <li class="nav-item"><a class="nav-link" href="{% url 'teacher_courses' %}">Курси</a></li>
-          <li class="nav-item"><a class="nav-link" href="{% url 'teacher_students' %}">Студенти</a></li>
-        {% endif %}
+          {% if user.is_authenticated %}
+          {% if is_student %}
+          <li class="nav-item dropdown">
+            <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+              Студент
+            </a>
+            <ul class="dropdown-menu border-0 shadow">
+              <li><a class="dropdown-item" href="{% url 'student_dashboard' %}">Дашборд</a></li>
+              <li><a class="dropdown-item" href="{% url 'student_profile' %}">Мій Профіль</a></li>
+              <li><a class="dropdown-item" href="{% url 'student_courses' %}">Пройдені Курси</a></li>
+              <li>
+                <hr class="dropdown-divider">
+              </li>
+              <li><a class="dropdown-item" href="{% url 'student_recommendations' %}">Рекомендації</a></li>
+            </ul>
+          </li>
+          {% endif %}
 
-        {% if user.is_authenticated and is_admin %}
-          <li class="nav-item"><a class="nav-link" href="{% url 'admin_dashboard' %}">Адмін-панель</a></li>
-          <li class="nav-item"><a class="nav-link" href="{% url 'admin_train_model' %}">Тренувати модель</a></li>
-          <li class="nav-item"><a class="nav-link" href="{% url 'admin_import_catalog' %}">Імпорт каталогу</a></li>
-          <li class="nav-item"><a class="nav-link" href="/admin/">Django admin</a></li>
-        {% endif %}
-      </ul>
+          {% if is_teacher %}
+          <li class="nav-item dropdown">
+            <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+              Викладач
+            </a>
+            <ul class="dropdown-menu border-0 shadow">
+              <li><a class="dropdown-item" href="{% url 'teacher_dashboard' %}">Дашборд</a></li>
+              <li><a class="dropdown-item" href="{% url 'teacher_courses' %}">Каталог Курсів</a></li>
+              <li><a class="dropdown-item" href="{% url 'teacher_students' %}">Студенти</a></li>
+            </ul>
+          </li>
+          {% endif %}
 
-      <ul class="navbar-nav ms-auto">
-        {% if user.is_authenticated %}
-          <li class="nav-item"><span class="navbar-text me-2">{{ user.username }}</span></li>
-          <li class="nav-item"><a class="nav-link" href="{% url 'logout' %}">Вихід</a></li>
-        {% else %}
-          <li class="nav-item"><a class="nav-link" href="{% url 'login' %}">Вхід</a></li>
-        {% endif %}
-      </ul>
+          {% if is_admin %}
+          <li class="nav-item dropdown">
+            <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+              Адміністрування
+            </a>
+            <ul class="dropdown-menu border-0 shadow">
+              <li><a class="dropdown-item" href="{% url 'admin_dashboard' %}">Панель керування</a></li>
+              <li><a class="dropdown-item" href="{% url 'admin_train_model' %}">Тренування моделі</a></li>
+              <li><a class="dropdown-item" href="{% url 'admin_import_catalog' %}">Імпорт каталогу</a></li>
+              <li>
+                <hr class="dropdown-divider">
+              </li>
+              <li><a class="dropdown-item" href="/admin/">Django Admin</a></li>
+            </ul>
+          </li>
+          {% endif %}
+          {% endif %}
+        </ul>
+
+        <div class="d-flex align-items-center gap-3">
+          {% if user.is_authenticated %}
+          <div class="dropdown">
+            <a href="#" class="d-flex align-items-center text-decoration-none dropdown-toggle text-dark fw-bold"
+              data-bs-toggle="dropdown">
+              <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center me-2"
+                style="width: 35px; height: 35px;">
+                {{ user.username|make_list|first|upper }}
+              </div>
+              <span>{{ user.username }}</span>
+            </a>
+            <ul class="dropdown-menu dropdown-menu-end border-0 shadow">
+              <li><a class="dropdown-item" href="{% url 'logout' %}">Вийти</a></li>
+            </ul>
+          </div>
+          {% else %}
+          <div class="d-flex gap-2">
+            <!-- Optional: Registration link if you have one -->
+            <a class="btn btn-outline-primary fw-semibold" href="{% url 'login' %}">Вхід</a>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <div class="flex-grow-1">
+    <div class="container mt-4 mb-5">
+      {% for message in messages %}
+      <div class="alert alert-{{ message.tags }} alert-dismissible fade show shadow-sm border-0" role="alert">
+        {{ message }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+      </div>
+      {% endfor %}
+
+      {% block content %}{% endblock %}
     </div>
   </div>
-</nav>
-<div class="container">
-  {% for message in messages %}
-    <div class="alert alert-{{ message.tags }}">{{ message }}</div>
-  {% endfor %}
-  {% block content %}{% endblock %}
-</div>
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+  <footer class="text-center text-muted">
+    <div class="container">
+      <p class="mb-0">&copy; {% now "Y" %} Study Reco. Система рекомендацій навчальних траєкторій.</p>
+    </div>
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
+
 </html>

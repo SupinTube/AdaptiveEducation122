@@ -1,10 +1,110 @@
 {% extends "base.html" %}
+
 {% block content %}
-<div class="p-4 bg-light rounded">
-  <h2>Система рекомендацій навчальних траєкторій</h2>
-  <p>Увійдіть, щоб перейти до своєї ролі (студент, викладач або адміністратор).</p>
-  {% if not user.is_authenticated %}
-    <a class="btn btn-primary" href="{% url 'login' %}">Увійти</a>
-  {% endif %}
+{% if not user.is_authenticated %}
+<!-- Hero Section -->
+<div class="hero-section text-center">
+  <div class="container">
+    <h1 class="hero-title">Твоя ідеальна<br>навчальна траєкторія</h1>
+    <p class="hero-subtitle mb-4">
+      Study Reco допомагає студентам обирати найкращі дисципліни вільного вибору,<br>
+      аналізуючи ваші інтереси та успішність за допомогою Machine Learning.
+    </p>
+    <div class="d-flex gap-3 justify-content-center">
+      <a href="{% url 'login' %}" class="btn btn-light text-primary fw-bold py-3 px-5 fs-5">Розпочати навчання</a>
+    </div>
+  </div>
 </div>
+
+<!-- Features Section -->
+<div class="row g-4 py-5 row-cols-1 row-cols-lg-3">
+  <div class="col">
+    <div class="card h-100 p-4">
+      <div class="card-body">
+        <div class="feature-icon mb-4">
+          <i class="bi bi-cpu"></i>
+        </div>
+        <h3 class="h4 mb-3">AI Рекомендації</h3>
+        <p class="text-muted">
+          Наша система використовує алгоритм Naive Bayes для аналізу профілів успішних студентів
+          та пропонує дисципліни, які найкраще підходять саме вам.
+        </p>
+      </div>
+    </div>
+  </div>
+  <div class="col">
+    <div class="card h-100 p-4">
+      <div class="card-body">
+        <div class="feature-icon mb-4">
+          <i class="bi bi-person-lines-fill"></i>
+        </div>
+        <h3 class="h4 mb-3">Персоналізація</h3>
+        <p class="text-muted">
+          Враховуємо не лише ваші оцінки, але й професійні інтереси (AI, Web, Data Science тощо)
+          та рівень soft/hard скілів.
+        </p>
+      </div>
+    </div>
+  </div>
+  <div class="col">
+    <div class="card h-100 p-4">
+      <div class="card-body">
+        <div class="feature-icon mb-4">
+          <i class="bi bi-graph-up-arrow"></i>
+        </div>
+        <h3 class="h4 mb-3">Аналітика</h3>
+        <p class="text-muted">
+          Слідкуйте за своїм прогресом, переглядайте історію пройдених курсів та отримуйте
+          поради щодо покращення результатів у обов'язкових предметах.
+        </p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- How it works -->
+<div class="py-5 text-center">
+  <h2 class="mb-5">Як це працює?</h2>
+  <div class="row justify-content-center">
+    <div class="col-md-3">
+      <div class="fs-1 text-primary fw-bold mb-3">1</div>
+      <h4 class="h5">Заповніть профіль</h4>
+      <p class="text-muted small">Вкажіть свої інтереси та поточні навички.</p>
+    </div>
+    <div class="col-md-1 d-none d-md-flex align-items-center justify-content-center">
+      <i class="bi bi-arrow-right fs-3 text-muted"></i>
+    </div>
+    <div class="col-md-3">
+      <div class="fs-1 text-primary fw-bold mb-3">2</div>
+      <h4 class="h5">Отримайте аналіз</h4>
+      <p class="text-muted small">Система проаналізує вашу успішність.</p>
+    </div>
+    <div class="col-md-1 d-none d-md-flex align-items-center justify-content-center">
+      <i class="bi bi-arrow-right fs-3 text-muted"></i>
+    </div>
+    <div class="col-md-3">
+      <div class="fs-1 text-primary fw-bold mb-3">3</div>
+      <h4 class="h5">Оберіть курси</h4>
+      <p class="text-muted small">Отримайте список рекомендованих дисциплін.</p>
+    </div>
+  </div>
+</div>
+
+{% else %}
+<!-- Logged In View (Redirect dashboard-like or simple welcome) -->
+<div class="py-5 text-center">
+  <h1 class="display-5 fw-bold text-primary mb-3">Вітаємо, {{ user.first_name|default:user.username }}!</h1>
+  <p class="lead mb-4">Перейдіть до вашого кабінету для початку роботи.</p>
+
+  <div class="d-flex justify-content-center gap-3">
+    {% if is_student %}
+    <a href="{% url 'student_dashboard' %}" class="btn btn-primary btn-lg px-5">Мій Дашборд</a>
+    {% elif is_teacher %}
+    <a href="{% url 'teacher_dashboard' %}" class="btn btn-primary btn-lg px-5">Кабінет Викладача</a>
+    {% elif is_admin %}
+    <a href="{% url 'admin_dashboard' %}" class="btn btn-primary btn-lg px-5">Адмін-панель</a>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
 {% endblock %}

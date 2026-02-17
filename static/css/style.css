@@ -1,0 +1,146 @@
+:root {
+  --primary-color: #4F46E5;
+  --secondary-color: #10B981;
+  --dark-bg: #1F2937;
+  --light-bg: #F3F4F6;
+  --text-main: #111827;
+  --text-muted: #6B7280;
+  --card-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+body {
+  font-family: 'Inter', sans-serif;
+  background-color: var(--light-bg);
+  color: var(--text-main);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Typography */
+h1, h2, h3, h4, h5, h6 {
+  font-weight: 700;
+  color: #111827;
+}
+
+/* Navbar */
+.navbar {
+  background-color: #ffffff !important;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+  padding: 1rem 0;
+}
+
+.navbar-brand {
+  color: var(--primary-color) !important;
+  font-weight: 800;
+  font-size: 1.5rem;
+}
+
+.nav-link {
+  color: var(--text-muted) !important;
+  font-weight: 500;
+  transition: color 0.2s;
+}
+
+.nav-link:hover, .nav-link.active {
+  color: var(--primary-color) !important;
+}
+
+/* Buttons */
+.btn-primary {
+  background-color: var(--primary-color);
+  border-color: var(--primary-color);
+  padding: 0.5rem 1.5rem;
+  font-weight: 600;
+  border-radius: 0.5rem;
+  transition: all 0.2s;
+}
+
+.btn-primary:hover {
+  background-color: #4338ca;
+  border-color: #4338ca;
+  transform: translateY(-1px);
+}
+
+.btn-secondary {
+    background-color: var(--secondary-color);
+    border-color: var(--secondary-color);
+    color: white;
+}
+.btn-secondary:hover {
+    background-color: #059669;
+    border-color: #059669;
+}
+
+/* Cards */
+.card {
+  border: none;
+  border-radius: 1rem;
+  box-shadow: var(--card-shadow);
+  transition: transform 0.2s;
+  background: white;
+  margin-bottom: 1.5rem;
+}
+
+.card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+}
+
+.card-header {
+  background-color: white;
+  border-bottom: 1px solid #e5e7eb;
+  padding: 1.5rem;
+  border-radius: 1rem 1rem 0 0 !important;
+  font-weight: 700;
+}
+
+/* Landing Page Hero */
+.hero-section {
+  padding: 6rem 0;
+  background: linear-gradient(135deg, #4F46E5 0%, #818CF8 100%);
+  color: white;
+  border-radius: 0 0 2rem 2rem;
+  margin-bottom: 3rem;
+}
+
+.hero-title {
+  font-size: 3.5rem;
+  font-weight: 800;
+  margin-bottom: 1.5rem;
+}
+
+.hero-subtitle {
+  font-size: 1.25rem;
+  opacity: 0.9;
+  margin-bottom: 2rem;
+}
+
+.feature-icon {
+  width: 4rem;
+  height: 4rem;
+  border-radius: 1rem;
+  background-color: #EEF2FF;
+  color: var(--primary-color);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.75rem;
+  margin-bottom: 1rem;
+}
+
+/* Footer */
+footer {
+  margin-top: auto;
+  background-color: white;
+  padding: 2rem 0;
+  border-top: 1px solid #e5e7eb;
+}
+
+/* Utilities */
+.text-primary-custom {
+    color: var(--primary-color);
+}
+.bg-gradient-primary {
+    background: linear-gradient(135deg, #4F46E5 0%, #818CF8 100%);
+}
