@@ -32,7 +32,12 @@ def _priority_tags_for_interests(interests: set[str]) -> set[str]:
 
 
 def is_student(user):
-    return user.is_superuser or user.groups.filter(name__in=["Student", "Admin"]).exists()
+    if user.is_superuser:
+        return True
+    if user.groups.filter(name__in=["Student", "Admin"]).exists():
+        return True
+    # Fallback: if user has a profile, they are a student
+    return StudentProfile.objects.filter(user=user).exists()
 
 
 def is_teacher(user):

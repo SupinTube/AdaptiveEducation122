@@ -9,9 +9,14 @@ def role_flags(request):
 
     group_names = set(user.groups.values_list("name", flat=True))
     is_admin = "Admin" in group_names
+    
+    # Check for profiles to be robust against missing groups
+    from .models import StudentProfile
+    has_student_profile = StudentProfile.objects.filter(user=user).exists()
+    
     return {
         "is_admin": is_admin,
         "is_teacher": is_admin or ("Teacher" in group_names),
-        "is_student": is_admin or ("Student" in group_names),
+        "is_student": is_admin or ("Student" in group_names) or has_student_profile,
     }
 
